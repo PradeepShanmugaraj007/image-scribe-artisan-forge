@@ -10,6 +10,7 @@ import {
   Image as PosturePhotos,
   Play as MonitorPlay
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -49,10 +50,12 @@ const Dashboard = () => {
                       <Profile className="mr-2 h-4 w-4" />
                       Profile
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <History className="mr-2 h-4 w-4" />
-                      History
-                    </Button>
+                    <Link to="/history">
+                      <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
+                        <History className="mr-2 h-4 w-4" />
+                        History
+                      </Button>
+                    </Link>
                     <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
                       <PosturePhotos className="mr-2 h-4 w-4" />
                       Posture Photos
@@ -176,9 +179,11 @@ const Dashboard = () => {
           <Button className="bg-gray-600 hover:bg-gray-700 text-white">
             Monitor Posture
           </Button>
-          <Button className="bg-gray-600 hover:bg-gray-700 text-white">
-            Check History
-          </Button>
+          <Link to="/history">
+            <Button className="bg-gray-600 hover:bg-gray-700 text-white">
+              Check History
+            </Button>
+          </Link>
         </div>
       </main>
     </div>
