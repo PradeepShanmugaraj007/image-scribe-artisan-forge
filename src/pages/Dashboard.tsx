@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
   ArrowRight,
   History, 
-  Feedback, 
+  MessageSquare, // Replacing Feedback with MessageSquare
   User as Profile, 
   Image as PosturePhotos,
   Play as MonitorPlay
@@ -42,7 +42,7 @@ const Dashboard = () => {
                 {dropdownOpen && (
                   <div className="absolute z-10 mt-2 w-48 bg-[#0f172a] border border-gray-800 rounded-md shadow-lg py-1">
                     <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <Feedback className="mr-2 h-4 w-4" />
+                      <MessageSquare className="mr-2 h-4 w-4" />
                       Feedback
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
