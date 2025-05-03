@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { 
   ArrowRight,
-  History, 
+  History as HistoryIcon, 
   MessageSquare,
   User as Profile, 
   Image as PosturePhotos,
@@ -73,7 +73,7 @@ const mockHistoryData: HistoryRecord[] = [
   }
 ];
 
-const History = () => {
+const HistoryPage = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchDate, setSearchDate] = useState("");
 
@@ -113,7 +113,7 @@ const History = () => {
                       Profile
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <History className="mr-2 h-4 w-4" />
+                      <HistoryIcon className="mr-2 h-4 w-4" />
                       History
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
@@ -153,7 +153,7 @@ const History = () => {
               onChange={(e) => setSearchDate(e.target.value)}
               className="bg-[#172036]/50 border-gray-700 text-white"
             />
-            <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <Calendar size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
           <Button className="bg-gray-600 hover:bg-gray-700">
             Search
@@ -198,4 +198,4 @@ const History = () => {
   );
 };
 
-export default History;
+export default HistoryPage;
