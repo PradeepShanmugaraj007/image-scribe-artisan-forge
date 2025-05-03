@@ -11,6 +11,12 @@ const Header = () => {
         </Link>
         
         <div className="flex space-x-4">
+          <Link to="/dashboard">
+            <Button variant="ghost" className="text-white hover:bg-[#172036]">
+              Dashboard
+            </Button>
+          </Link>
+          
           <Button variant="ghost" className="text-white hover:bg-[#172036]">
             Login
           </Button>
