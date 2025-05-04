@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import MainLayout from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -11,15 +12,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import { 
-  ArrowRight,
-  History as HistoryIcon, 
-  MessageSquare,
-  User as Profile, 
-  Image as PosturePhotos,
-  Play as MonitorPlay,
-  Calendar
-} from "lucide-react";
+import { Calendar } from "lucide-react";
 
 interface HistoryRecord {
   id: number;
@@ -74,66 +67,12 @@ const mockHistoryData: HistoryRecord[] = [
 ];
 
 const HistoryPage = () => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchDate, setSearchDate] = useState("");
 
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
-  };
-
   return (
-    <div className="min-h-screen bg-[#0a0f1a] text-white">
-      {/* Header/Navigation */}
-      <header className="w-full py-3 px-6 bg-[#0f172a]/90 backdrop-blur-sm border-b border-gray-800 flex items-center justify-between">
-        <div className="flex items-center">
-          <h1 className="text-xl font-bold text-[#2ece71]">Posture Corrector</h1>
-          
-          <nav className="ml-8 hidden md:block">
-            <ul className="flex space-x-4">
-              <li><Button variant="ghost" size="sm" className="text-white hover:bg-[#172036]">Home</Button></li>
-              <li><Button variant="ghost" size="sm" className="text-white hover:bg-[#172036]">Logout</Button></li>
-              <li className="relative">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex items-center text-white hover:bg-[#172036]"
-                  onClick={toggleDropdown}
-                >
-                  More Actions <ArrowRight className="ml-1 h-4 w-4 rotate-90" />
-                </Button>
-                
-                {dropdownOpen && (
-                  <div className="absolute z-10 mt-2 w-48 bg-[#0f172a] border border-gray-800 rounded-md shadow-lg py-1">
-                    <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Feedback
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <Profile className="mr-2 h-4 w-4" />
-                      Profile
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <HistoryIcon className="mr-2 h-4 w-4" />
-                      History
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <PosturePhotos className="mr-2 h-4 w-4" />
-                      Posture Photos
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start text-sm text-white hover:bg-[#172036] px-4">
-                      <MonitorPlay className="mr-2 h-4 w-4" />
-                      Monitor Your Posture
-                    </Button>
-                  </div>
-                )}
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8 max-w-5xl">
-        <h1 className="text-3xl font-bold text-center mb-10">History:</h1>
+    <MainLayout>
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <h1 className="text-3xl font-bold text-center mb-10">History</h1>
         
         {/* Info box */}
         <Card className="bg-blue-100/20 text-blue-100 p-6 mb-8 border-blue-200/30">
@@ -193,8 +132,8 @@ const HistoryPage = () => {
             </TableBody>
           </Table>
         </div>
-      </main>
-    </div>
+      </div>
+    </MainLayout>
   );
 };
 

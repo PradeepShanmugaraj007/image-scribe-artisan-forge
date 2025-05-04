@@ -1,13 +1,23 @@
 
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Camera, LineChart, LightbulbIcon } from "lucide-react";
 import Header from "@/components/Header";
 import FeatureCard from "@/components/FeatureCard";
 
 const Index = () => {
   const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Check if user is already authenticated
+    const user = localStorage.getItem("user");
+    if (user) {
+      // If user is logged in, redirect to dashboard
+      navigate("/dashboard");
+    }
+  }, [navigate]);
   
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0f1a]">
@@ -25,13 +35,15 @@ const Index = () => {
           healthy posture habits — right from your webcam.
         </p>
         
-        <Button 
-          className="bg-[#2ece71] hover:bg-[#28b863] text-white text-lg py-6 px-10 rounded-md font-medium"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          Get Started
-        </Button>
+        <Link to="/auth">
+          <Button 
+            className="bg-[#2ece71] hover:bg-[#28b863] text-white text-lg py-6 px-10 rounded-md font-medium"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            Get Started
+          </Button>
+        </Link>
       </section>
       
       {/* Features Section */}
