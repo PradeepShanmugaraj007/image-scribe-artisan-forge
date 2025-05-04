@@ -1,6 +1,6 @@
 
 import { ReactNode, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 interface MainLayoutProps {
@@ -9,22 +9,27 @@ interface MainLayoutProps {
 }
 
 const MainLayout = ({ children, requireAuth = true }: MainLayoutProps) => {
-  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     // Check if user is authenticated
     const user = localStorage.getItem("user");
     if (requireAuth && !user) {
-      // Redirect to login page
-      navigate("/");
+      // User will be redirected in the render
+      setIsAuthenticated(false);
     } else {
       setIsAuthenticated(true);
     }
-  }, [navigate, requireAuth]);
+    setIsLoading(false);
+  }, [requireAuth]);
+  
+  if (isLoading) {
+    return null; // Don't render anything while checking authentication
+  }
   
   if (requireAuth && !isAuthenticated) {
-    return null; // Don't render anything while checking authentication
+    return <Navigate to="/" />; // Use Navigate component instead of useNavigate hook
   }
   
   return (

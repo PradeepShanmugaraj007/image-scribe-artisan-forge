@@ -1,23 +1,32 @@
 
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Camera, LineChart, LightbulbIcon } from "lucide-react";
 import Header from "@/components/Header";
 import FeatureCard from "@/components/FeatureCard";
 
 const Index = () => {
   const [isHovered, setIsHovered] = useState(false);
-  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     // Check if user is already authenticated
     const user = localStorage.getItem("user");
     if (user) {
-      // If user is logged in, redirect to dashboard
-      navigate("/dashboard");
+      setIsAuthenticated(true);
     }
-  }, [navigate]);
+    setIsLoading(false);
+  }, []);
+  
+  if (isLoading) {
+    return null;
+  }
+  
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" />;
+  }
   
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0f1a]">
