@@ -1,37 +1,122 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import MainLayout from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { Play, Square, AlertTriangle } from "lucide-react";
+import { postureService } from "@/services/api";
 
 const MonitorPosture = () => {
   const [monitoring, setMonitoring] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [postureData, setPostureData] = useState({
+    totalAlerts: 0,
+    incorrectPostures: [] as string[],
+    postureScore: 100
+  });
+  
+  // Store timers as refs to handle cleanup properly
+  const analyzeTimerRef = useRef<number | null>(null);
+  const alertsCountRef = useRef(0);
+  
+  // Function to capture video frame and convert to base64
+  const captureFrame = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get base64 data URL
+        return canvas.toDataURL('image/jpeg', 0.5).split(',')[1]; // Remove data:image/jpeg;base64, prefix
+      }
+    }
+    return null;
+  };
+  
+  // Function to analyze posture
+  const analyzePosture = async () => {
+    if (!monitoring || !sessionId) return;
+    
+    try {
+      const imageData = captureFrame();
+      if (!imageData) return;
+      
+      // Send to backend for analysis
+      const result = await postureService.analyzePosture(sessionId, imageData);
+      
+      // If bad posture detected, show alert and record it
+      if (!result.isGoodPosture) {
+        setShowAlert(true);
+        alertsCountRef.current++;
+        
+        // Update local state
+        setPostureData(prev => ({
+          totalAlerts: prev.totalAlerts + 1,
+          incorrectPostures: [...prev.incorrectPostures, result.postureType],
+          postureScore: Math.max(0, prev.postureScore - 5)
+        }));
+        
+        // Record alert in the database
+        await postureService.recordAlert(sessionId, result.postureType);
+        
+        toast({
+          title: "Poor posture detected!",
+          description: `Problem: ${result.postureType}. Please adjust your position.`,
+          variant: "destructive",
+        });
+      } else {
+        // Reset alert if posture is good
+        setShowAlert(false);
+      }
+    } catch (error) {
+      console.error("Error analyzing posture:", error);
+    }
+    
+    // Schedule next analysis if still monitoring
+    if (monitoring) {
+      analyzeTimerRef.current = window.setTimeout(analyzePosture, 5000); // Check every 5 seconds
+    }
+  };
   
   const startMonitoring = async () => {
     try {
+      // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       setVideoStream(stream);
-      setMonitoring(true);
       
-      // For demo: Simulate poor posture detection after 5 seconds
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      
+      // Create new session in the database
+      const session = await postureService.startSession();
+      setSessionId(session._id);
+      
+      // Reset posture data
+      setPostureData({
+        totalAlerts: 0,
+        incorrectPostures: [],
+        postureScore: 100
+      });
+      
+      setMonitoring(true);
+      alertsCountRef.current = 0;
+      
+      // Start posture analysis after a short delay to let the video stream initialize
       setTimeout(() => {
-        if (monitoring) {
-          setShowAlert(true);
-          toast({
-            title: "Poor posture detected!",
-            description: "Please straighten your back.",
-            variant: "destructive",
-          });
-          
-          // Simulate sending email notification
-          console.log("Sending email notification for poor posture...");
-        }
-      }, 5000);
+        analyzePosture();
+      }, 1000);
       
     } catch (error) {
       console.error("Error accessing webcam:", error);
@@ -43,16 +128,59 @@ const MonitorPosture = () => {
     }
   };
   
-  const stopMonitoring = () => {
+  const stopMonitoring = async () => {
+    // Clear timers
+    if (analyzeTimerRef.current) {
+      clearTimeout(analyzeTimerRef.current);
+      analyzeTimerRef.current = null;
+    }
+    
+    // Stop video stream
     if (videoStream) {
       videoStream.getTracks().forEach(track => {
         track.stop();
       });
       setVideoStream(null);
     }
+    
+    // End session in database
+    if (sessionId) {
+      try {
+        await postureService.endSession(sessionId, postureData);
+        toast({
+          title: "Session ended",
+          description: `You had ${postureData.totalAlerts} posture alerts. Final score: ${postureData.postureScore}`,
+        });
+      } catch (error) {
+        console.error("Error ending session:", error);
+      }
+    }
+    
     setMonitoring(false);
     setShowAlert(false);
+    setSessionId(null);
   };
+  
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      if (analyzeTimerRef.current) {
+        clearTimeout(analyzeTimerRef.current);
+      }
+      
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => {
+          track.stop();
+        });
+      }
+      
+      // If user navigates away while monitoring, end the session
+      if (sessionId && monitoring) {
+        postureService.endSession(sessionId, postureData)
+          .catch(error => console.error("Error ending session on unmount:", error));
+      }
+    };
+  }, [monitoring, sessionId, videoStream, postureData]);
   
   return (
     <MainLayout>
@@ -79,12 +207,10 @@ const MonitorPosture = () => {
               <div className="relative aspect-video bg-black/50 rounded-lg overflow-hidden flex items-center justify-center">
                 {monitoring ? (
                   <video
-                    ref={(videoElement) => {
-                      if (videoElement && videoStream) {
-                        videoElement.srcObject = videoStream;
-                        videoElement.play();
-                      }
-                    }}
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -124,6 +250,9 @@ const MonitorPosture = () => {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Hidden canvas used for capturing video frames */}
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
       </div>
     </MainLayout>
   );

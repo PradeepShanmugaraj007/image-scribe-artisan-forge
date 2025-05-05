@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MainLayout from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,11 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { Calendar } from "lucide-react";
+import { postureService } from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 
 interface HistoryRecord {
-  id: number;
+  _id: string;
   startTime: string;
   endTime: string;
   totalAlerts: number;
@@ -23,51 +25,60 @@ interface HistoryRecord {
   postureScore: number;
 }
 
-const mockHistoryData: HistoryRecord[] = [
-  {
-    id: 1,
-    startTime: "July 20, 2023, 8:57 p.m.",
-    endTime: "July 20, 2023, 8:57 p.m.",
-    totalAlerts: 1,
-    incorrectPostures: ["reclined back"],
-    postureScore: 62
-  },
-  {
-    id: 2,
-    startTime: "July 20, 2023, 8:54 p.m.",
-    endTime: "July 20, 2023, 8:55 p.m.",
-    totalAlerts: 1,
-    incorrectPostures: ["reclined back"],
-    postureScore: 81
-  },
-  {
-    id: 3,
-    startTime: "July 20, 2023, 8:41 p.m.",
-    endTime: "July 20, 2023, 8:43 p.m.",
-    totalAlerts: 3,
-    incorrectPostures: ["reclined back", "forward-leaning back", "forward-leaning neck"],
-    postureScore: 68
-  },
-  {
-    id: 4,
-    startTime: "July 20, 2023, 7:23 p.m.",
-    endTime: "July 20, 2023, 7:23 p.m.",
-    totalAlerts: 0,
-    incorrectPostures: ["No Incorrect Posture"],
-    postureScore: 100
-  },
-  {
-    id: 5,
-    startTime: "July 20, 2023, 7:21 p.m.",
-    endTime: "July 20, 2023, 7:22 p.m.",
-    totalAlerts: 2,
-    incorrectPostures: ["forward-leaning neck", "forward-leaning neck"],
-    postureScore: 76
-  }
-];
-
 const HistoryPage = () => {
   const [searchDate, setSearchDate] = useState("");
+  const [historyData, setHistoryData] = useState<HistoryRecord[]>([]);
+  const [filteredData, setFilteredData] = useState<HistoryRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setIsLoading(true);
+        const data = await postureService.getHistory();
+        
+        // Convert ISO date strings to readable format
+        const formattedData = data.map((item: any) => ({
+          ...item,
+          startTime: new Date(item.startTime).toLocaleString(),
+          endTime: new Date(item.endTime).toLocaleString()
+        }));
+        
+        setHistoryData(formattedData);
+        setFilteredData(formattedData);
+      } catch (error) {
+        console.error("Failed to fetch history:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch your posture history",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, []);
+
+  const handleSearch = () => {
+    if (!searchDate) {
+      setFilteredData(historyData);
+      return;
+    }
+    
+    // Convert searchDate to format that can be compared
+    const searchDateObj = new Date(searchDate);
+    searchDateObj.setHours(0, 0, 0, 0);
+    
+    const filtered = historyData.filter((record) => {
+      const recordDate = new Date(record.startTime);
+      recordDate.setHours(0, 0, 0, 0);
+      return recordDate.getTime() === searchDateObj.getTime();
+    });
+    
+    setFilteredData(filtered);
+  };
 
   return (
     <MainLayout>
@@ -77,8 +88,8 @@ const HistoryPage = () => {
         {/* Info box */}
         <Card className="bg-blue-100/20 text-blue-100 p-6 mb-8 border-blue-200/30">
           <ul className="list-disc pl-6 space-y-2">
-            <li>Videos are sorted by the most recent.</li>
-            <li>You can search your videos by date.</li>
+            <li>Sessions are sorted by the most recent.</li>
+            <li>You can search your sessions by date.</li>
           </ul>
         </Card>
         
@@ -94,43 +105,56 @@ const HistoryPage = () => {
             />
             <Calendar size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
-          <Button className="bg-gray-600 hover:bg-gray-700">
+          <Button className="bg-gray-600 hover:bg-gray-700" onClick={handleSearch}>
             Search
           </Button>
         </div>
         
         {/* History Table */}
         <div className="overflow-x-auto">
-          <Table className="w-full">
-            <TableHeader className="bg-[#172036]">
-              <TableRow>
-                <TableHead className="text-white">#</TableHead>
-                <TableHead className="text-white">Start Time</TableHead>
-                <TableHead className="text-white">End Time</TableHead>
-                <TableHead className="text-white">Total Alerts</TableHead>
-                <TableHead className="text-white">Incorrect Postures</TableHead>
-                <TableHead className="text-white">Posture Score</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockHistoryData.map((record) => (
-                <TableRow key={record.id} className="bg-[#172036]/50 border-gray-800">
-                  <TableCell className="font-medium text-white">{record.id}</TableCell>
-                  <TableCell className="text-white">{record.startTime}</TableCell>
-                  <TableCell className="text-white">{record.endTime}</TableCell>
-                  <TableCell className="text-white">{record.totalAlerts}</TableCell>
-                  <TableCell className="text-white">
-                    <div className="space-y-2">
-                      {record.incorrectPostures.map((posture, index) => (
-                        <div key={index}>{posture}</div>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-white">{record.postureScore}</TableCell>
+          {isLoading ? (
+            <div className="text-center py-10">
+              <p className="text-gray-400">Loading...</p>
+            </div>
+          ) : filteredData.length > 0 ? (
+            <Table className="w-full">
+              <TableHeader className="bg-[#172036]">
+                <TableRow>
+                  <TableHead className="text-white">#</TableHead>
+                  <TableHead className="text-white">Start Time</TableHead>
+                  <TableHead className="text-white">End Time</TableHead>
+                  <TableHead className="text-white">Total Alerts</TableHead>
+                  <TableHead className="text-white">Incorrect Postures</TableHead>
+                  <TableHead className="text-white">Posture Score</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((record, index) => (
+                  <TableRow key={record._id} className="bg-[#172036]/50 border-gray-800">
+                    <TableCell className="font-medium text-white">{index + 1}</TableCell>
+                    <TableCell className="text-white">{record.startTime}</TableCell>
+                    <TableCell className="text-white">{record.endTime}</TableCell>
+                    <TableCell className="text-white">{record.totalAlerts}</TableCell>
+                    <TableCell className="text-white">
+                      <div className="space-y-2">
+                        {record.incorrectPostures.length > 0 ? 
+                          record.incorrectPostures.map((posture, idx) => (
+                            <div key={idx}>{posture}</div>
+                          )) : 
+                          <div>No Incorrect Posture</div>
+                        }
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-white">{record.postureScore}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-gray-400">No posture sessions found for the selected date.</p>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

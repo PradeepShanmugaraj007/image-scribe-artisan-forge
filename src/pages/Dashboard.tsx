@@ -1,10 +1,60 @@
 
+import { useEffect, useState } from "react";
 import MainLayout from "@/components/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { postureService } from "@/services/api";
+import { toast } from "@/hooks/use-toast";
+
+interface PostureStats {
+  averageScore: number;
+  bestScore: number;
+  latestScore: number;
+  totalSessions: number;
+  totalTime: number;
+  improvement: number;
+}
 
 const Dashboard = () => {
+  const [stats, setStats] = useState<PostureStats>({
+    averageScore: 0,
+    bestScore: 0,
+    latestScore: 0,
+    totalSessions: 0,
+    totalTime: 0,
+    improvement: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const data = await postureService.getStats();
+        setStats(data);
+      } catch (error) {
+        console.error("Failed to fetch posture stats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch your posture statistics",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  // Format time in minutes to minutes and seconds
+  const formatTime = (timeInMinutes: number) => {
+    const minutes = Math.floor(timeInMinutes);
+    const seconds = Math.round((timeInMinutes - minutes) * 60);
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} and ${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
+  };
+
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -16,21 +66,35 @@ const Dashboard = () => {
             <Card className="bg-[#172036]/50 border-gray-700">
               <CardContent className="p-6 flex flex-col items-center">
                 <h3 className="text-lg font-medium mb-2">Good Posture</h3>
-                <p className="text-[#2ece71] font-bold text-xl">2 minutes and 1 seconds</p>
+                {isLoading ? (
+                  <p className="text-gray-400">Loading...</p>
+                ) : (
+                  <p className="text-[#2ece71] font-bold text-xl">{formatTime(stats.totalTime)}</p>
+                )}
               </CardContent>
             </Card>
             
             <Card className="bg-[#172036]/50 border-gray-700">
               <CardContent className="p-6 flex flex-col items-center">
                 <h3 className="text-lg font-medium mb-2">Posture Awareness</h3>
-                <p className="text-[#2ece71] font-bold text-xl">14 Days</p>
+                {isLoading ? (
+                  <p className="text-gray-400">Loading...</p>
+                ) : (
+                  <p className="text-[#2ece71] font-bold text-xl">{stats.totalSessions} {stats.totalSessions === 1 ? 'Session' : 'Sessions'}</p>
+                )}
               </CardContent>
             </Card>
             
             <Card className="bg-[#172036]/50 border-gray-700">
               <CardContent className="p-6 flex flex-col items-center">
                 <h3 className="text-lg font-medium mb-2">Posture Improvement</h3>
-                <p className="text-[#2ece71] font-bold text-xl">-10.71%</p>
+                {isLoading ? (
+                  <p className="text-gray-400">Loading...</p>
+                ) : (
+                  <p className={`font-bold text-xl ${stats.improvement >= 0 ? 'text-[#2ece71]' : 'text-red-500'}`}>
+                    {stats.improvement >= 0 ? '+' : ''}{stats.improvement.toFixed(2)}%
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -44,7 +108,11 @@ const Dashboard = () => {
             <Card className="bg-[#172036]/50 border-gray-700">
               <CardContent className="p-6 flex flex-col items-center">
                 <h3 className="text-lg font-medium mb-1">Latest Posture Score</h3>
-                <p className="text-[#2ece71] font-bold text-3xl">75</p>
+                {isLoading ? (
+                  <p className="text-gray-400">Loading...</p>
+                ) : (
+                  <p className="text-[#2ece71] font-bold text-3xl">{stats.latestScore}</p>
+                )}
                 <span className="text-sm text-gray-400 mt-1">From your last session</span>
               </CardContent>
             </Card>
@@ -52,7 +120,11 @@ const Dashboard = () => {
             <Card className="bg-[#172036]/50 border-gray-700">
               <CardContent className="p-6 flex flex-col items-center">
                 <h3 className="text-lg font-medium mb-1">Average Posture Score</h3>
-                <p className="text-[#2ece71] font-bold text-3xl">71.33</p>
+                {isLoading ? (
+                  <p className="text-gray-400">Loading...</p>
+                ) : (
+                  <p className="text-[#2ece71] font-bold text-3xl">{stats.averageScore.toFixed(2)}</p>
+                )}
                 <span className="text-sm text-gray-400 mt-1">Across all sessions</span>
               </CardContent>
             </Card>
@@ -60,7 +132,11 @@ const Dashboard = () => {
             <Card className="bg-[#172036]/50 border-gray-700">
               <CardContent className="p-6 flex flex-col items-center">
                 <h3 className="text-lg font-medium mb-1">Best Posture Score</h3>
-                <p className="text-[#2ece71] font-bold text-3xl">84</p>
+                {isLoading ? (
+                  <p className="text-gray-400">Loading...</p>
+                ) : (
+                  <p className="text-[#2ece71] font-bold text-3xl">{stats.bestScore}</p>
+                )}
                 <span className="text-sm text-gray-400 mt-1">Your personal best</span>
               </CardContent>
             </Card>
