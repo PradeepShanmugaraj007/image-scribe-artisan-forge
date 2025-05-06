@@ -39,5 +39,3 @@ export function PostureVideoPreview({ monitoring, isPythonBackendRunning, videoS
   
   return <p className="text-gray-400">Monitoring is off</p>;
 }
-
-export { videoRef as defaultVideoRef };
