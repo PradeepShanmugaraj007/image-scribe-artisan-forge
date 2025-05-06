@@ -36,7 +36,7 @@ export function usePostureMonitoring() {
     } catch (error) {
       console.error("Python backend is not available:", error);
       setIsPythonBackendRunning(false);
-      setErrorMessage("Python backend is not available. Please start the Python script first.");
+      setErrorMessage("Python backend is not available. Using fallback camera analysis instead.");
       return false;
     }
   };
@@ -69,6 +69,8 @@ export function usePostureMonitoring() {
       }
     } catch (error) {
       console.error("Error polling posture data:", error);
+      // If polling fails, try using the fallback method
+      setIsPythonBackendRunning(false);
     }
     
     // Continue polling if still monitoring
@@ -143,7 +145,10 @@ export function usePostureMonitoring() {
   
   const startMonitoring = async (videoRef: React.RefObject<HTMLVideoElement>) => {
     try {
-      if (isPythonBackendRunning) {
+      // Check if Python backend is available
+      const pythonAvailable = await checkPythonBackend();
+      
+      if (pythonAvailable) {
         // Start Python backend monitoring
         await pythonBackendService.startPostureMonitoring();
         

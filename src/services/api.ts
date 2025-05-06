@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { toast } from '@/hooks/use-toast';
 
@@ -46,18 +45,14 @@ api.interceptors.response.use(
         variant: 'destructive',
       });
     } else if (response) {
+      // Only show toast for server responses, not network errors
       toast({
         title: 'Error',
         description: response.data?.message || 'Something went wrong',
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Network Error',
-        description: 'Unable to connect to the server. Please make sure your backend is running.',
-        variant: 'destructive',
-      });
     }
+    // Don't show toast for network errors as they're expected when Python backend isn't running
     
     return Promise.reject(error);
   }
@@ -82,11 +77,7 @@ export const pythonBackendService = {
       return response.data;
     } catch (error) {
       console.error("Failed to start posture monitoring:", error);
-      toast({
-        title: "Python Backend Error",
-        description: "Failed to start posture monitoring. Is the Python service running?",
-        variant: "destructive",
-      });
+      // Don't show toast here, we'll handle it in the hook
       // Return a mock response
       return { status: 'error', message: 'Failed to start monitoring' };
     }
@@ -98,11 +89,7 @@ export const pythonBackendService = {
       return response.data;
     } catch (error) {
       console.error("Failed to stop posture monitoring:", error);
-      toast({
-        title: "Python Backend Error",
-        description: "Failed to stop posture monitoring",
-        variant: "destructive",
-      });
+      // Don't show toast here, we'll handle it in the hook
       // Return a mock response
       return { status: 'error', message: 'Failed to stop monitoring' };
     }
@@ -114,22 +101,7 @@ export const pythonBackendService = {
       return response.data;
     } catch (error) {
       console.error("Failed to fetch posture data:", error);
-      // Return mock data
-      return {
-        goodCount: Math.floor(Math.random() * 80) + 20,
-        badCount: Math.floor(Math.random() * 40),
-        postureHistory: Array(100).fill(0).map(() => Math.round(Math.random())),
-        sessions: [
-          {
-            _id: 'mock-1',
-            startTime: new Date(Date.now() - 3600000).toISOString(),
-            endTime: new Date().toISOString(),
-            totalAlerts: Math.floor(Math.random() * 10),
-            incorrectPostures: ['Slouching', 'Neck Tilt'],
-            postureScore: Math.floor(Math.random() * 40) + 60,
-          }
-        ]
-      };
+      throw error; // Let the calling code handle this error
     }
   },
 };
