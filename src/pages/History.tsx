@@ -30,11 +30,13 @@ const HistoryPage = () => {
   const [historyData, setHistoryData] = useState<HistoryRecord[]>([]);
   const [filteredData, setFilteredData] = useState<HistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         const data = await postureService.getHistory();
         
         // Convert ISO date strings to readable format
@@ -48,6 +50,7 @@ const HistoryPage = () => {
         setFilteredData(formattedData);
       } catch (error) {
         console.error("Failed to fetch history:", error);
+        setError("Failed to fetch your posture history. Please ensure you have a backend server running.");
         toast({
           title: "Error",
           description: "Failed to fetch your posture history",
@@ -115,6 +118,16 @@ const HistoryPage = () => {
           {isLoading ? (
             <div className="text-center py-10">
               <p className="text-gray-400">Loading...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-10 bg-red-900/30 border border-red-700 rounded-lg p-8">
+              <p className="text-white mb-4">{error}</p>
+              <p className="text-gray-300">To see your posture history, please ensure:</p>
+              <ul className="list-disc pl-6 text-gray-300 text-left mt-2 space-y-1">
+                <li>Your backend server is running at {import.meta.env.VITE_API_URL}</li>
+                <li>Your MongoDB database is properly connected</li>
+                <li>You've completed posture monitoring sessions</li>
+              </ul>
             </div>
           ) : filteredData.length > 0 ? (
             <Table className="w-full">
