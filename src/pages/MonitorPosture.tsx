@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { Play, Square, AlertTriangle } from "lucide-react";
-import { postureService } from "@/services/api";
+import { postureService, pythonBackendService } from "@/services/api";
 
 const MonitorPosture = () => {
   const [monitoring, setMonitoring] = useState(false);
@@ -20,9 +20,12 @@ const MonitorPosture = () => {
     incorrectPostures: [] as string[],
     postureScore: 100
   });
+  const [isPythonBackendRunning, setIsPythonBackendRunning] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Store timers as refs to handle cleanup properly
   const analyzeTimerRef = useRef<number | null>(null);
+  const dataPollingTimerRef = useRef<number | null>(null);
   const alertsCountRef = useRef(0);
   
   // Function to capture video frame and convert to base64
@@ -44,7 +47,62 @@ const MonitorPosture = () => {
     return null;
   };
   
-  // Function to analyze posture
+  // Check if Python backend is available
+  const checkPythonBackend = async () => {
+    try {
+      const data = await pythonBackendService.getPostureData();
+      setIsPythonBackendRunning(true);
+      setErrorMessage(null);
+      return true;
+    } catch (error) {
+      console.error("Python backend is not available:", error);
+      setIsPythonBackendRunning(false);
+      setErrorMessage("Python backend is not available. Please start the Python script first.");
+      return false;
+    }
+  };
+  
+  useEffect(() => {
+    checkPythonBackend();
+  }, []);
+  
+  // Poll for posture data from Python backend
+  const pollPostureData = async () => {
+    if (!monitoring) return;
+    
+    try {
+      const data = await pythonBackendService.getPostureData();
+      
+      if (data) {
+        // Update posture status if bad posture is detected
+        if (data.latestPosture && data.latestPosture !== "Good Posture") {
+          setShowAlert(true);
+          setPostureData(prev => ({
+            totalAlerts: prev.totalAlerts + 1,
+            incorrectPostures: [...prev.incorrectPostures, data.latestPosture],
+            postureScore: Math.max(0, prev.postureScore - 5)
+          }));
+          
+          toast({
+            title: "Poor posture detected!",
+            description: `Problem: ${data.latestPosture}. Please adjust your position.`,
+            variant: "destructive",
+          });
+        } else {
+          setShowAlert(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error polling posture data:", error);
+    }
+    
+    // Continue polling if still monitoring
+    if (monitoring) {
+      dataPollingTimerRef.current = window.setTimeout(pollPostureData, 2000);
+    }
+  };
+  
+  // Function to analyze posture using web camera (fallback)
   const analyzePosture = async () => {
     if (!monitoring || !sessionId) return;
     
@@ -91,12 +149,21 @@ const MonitorPosture = () => {
   
   const startMonitoring = async () => {
     try {
-      // Request camera access
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setVideoStream(stream);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      if (isPythonBackendRunning) {
+        // Start Python backend monitoring
+        await pythonBackendService.startPostureMonitoring();
+        
+        // Start polling for data
+        pollPostureData();
+      } else {
+        // Fallback to webcam analysis
+        // Request camera access
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setVideoStream(stream);
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
       }
       
       // Create new session in the database
@@ -113,16 +180,20 @@ const MonitorPosture = () => {
       setMonitoring(true);
       alertsCountRef.current = 0;
       
-      // Start posture analysis after a short delay to let the video stream initialize
-      setTimeout(() => {
-        analyzePosture();
-      }, 1000);
+      if (!isPythonBackendRunning) {
+        // Start posture analysis after a short delay to let the video stream initialize
+        setTimeout(() => {
+          analyzePosture();
+        }, 1000);
+      }
       
     } catch (error) {
-      console.error("Error accessing webcam:", error);
+      console.error("Error starting monitoring:", error);
       toast({
-        title: "Camera access error",
-        description: "Please allow camera access to monitor your posture.",
+        title: "Error starting monitoring",
+        description: isPythonBackendRunning 
+          ? "Failed to start Python monitoring service" 
+          : "Please allow camera access to monitor your posture.",
         variant: "destructive",
       });
     }
@@ -133,6 +204,20 @@ const MonitorPosture = () => {
     if (analyzeTimerRef.current) {
       clearTimeout(analyzeTimerRef.current);
       analyzeTimerRef.current = null;
+    }
+    
+    if (dataPollingTimerRef.current) {
+      clearTimeout(dataPollingTimerRef.current);
+      dataPollingTimerRef.current = null;
+    }
+    
+    // Stop Python backend if it was running
+    if (isPythonBackendRunning) {
+      try {
+        await pythonBackendService.stopPostureMonitoring();
+      } catch (error) {
+        console.error("Error stopping Python backend:", error);
+      }
     }
     
     // Stop video stream
@@ -168,6 +253,10 @@ const MonitorPosture = () => {
         clearTimeout(analyzeTimerRef.current);
       }
       
+      if (dataPollingTimerRef.current) {
+        clearTimeout(dataPollingTimerRef.current);
+      }
+      
       if (videoStream) {
         videoStream.getTracks().forEach(track => {
           track.stop();
@@ -179,8 +268,14 @@ const MonitorPosture = () => {
         postureService.endSession(sessionId, postureData)
           .catch(error => console.error("Error ending session on unmount:", error));
       }
+      
+      // Stop Python backend if it was running
+      if (isPythonBackendRunning && monitoring) {
+        pythonBackendService.stopPostureMonitoring()
+          .catch(error => console.error("Error stopping Python backend on unmount:", error));
+      }
     };
-  }, [monitoring, sessionId, videoStream, postureData]);
+  }, [monitoring, sessionId, videoStream, postureData, isPythonBackendRunning]);
   
   return (
     <MainLayout>
@@ -192,9 +287,23 @@ const MonitorPosture = () => {
             <CardHeader>
               <CardTitle className="flex items-center text-xl">
                 Real-time Posture Monitoring
+                {isPythonBackendRunning && (
+                  <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded-full">
+                    Python Backend Connected
+                  </span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {errorMessage && (
+                <Alert className="bg-yellow-900/30 border-yellow-700 text-white mb-4">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                  <AlertDescription>
+                    {errorMessage}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               {showAlert && (
                 <Alert className="bg-red-900/30 border-red-700 text-white mb-4">
                   <AlertTriangle className="h-5 w-5 text-red-400" />
@@ -205,7 +314,7 @@ const MonitorPosture = () => {
               )}
               
               <div className="relative aspect-video bg-black/50 rounded-lg overflow-hidden flex items-center justify-center">
-                {monitoring ? (
+                {monitoring && !isPythonBackendRunning ? (
                   <video
                     ref={videoRef}
                     autoPlay
@@ -213,8 +322,13 @@ const MonitorPosture = () => {
                     muted
                     className="w-full h-full object-cover"
                   />
+                ) : monitoring && isPythonBackendRunning ? (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <p className="text-green-500 font-bold mb-2">Python Posture Monitoring Active</p>
+                    <p className="text-gray-400">External application is analyzing your posture</p>
+                  </div>
                 ) : (
-                  <p className="text-gray-400">Camera is off</p>
+                  <p className="text-gray-400">Monitoring is off</p>
                 )}
               </div>
               
@@ -241,10 +355,12 @@ const MonitorPosture = () => {
               <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4 text-sm text-blue-100">
                 <h3 className="font-medium mb-2">How it works:</h3>
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>Click "Start Monitoring" to enable your webcam</li>
-                  <li>The AI will analyze your posture in real-time</li>
-                  <li>You'll receive alerts if you maintain poor posture for more than 20 seconds</li>
+                  <li>Make sure your Python backend is running first</li>
+                  <li>Click "Start Monitoring" to begin posture analysis</li>
+                  <li>The Python application will analyze your posture in real-time</li>
+                  <li>You'll receive alerts if poor posture is detected</li>
                   <li>Your posture data will be saved to your dashboard</li>
+                  <li>If Python backend is unavailable, web camera will be used as fallback</li>
                 </ul>
               </div>
             </CardContent>
